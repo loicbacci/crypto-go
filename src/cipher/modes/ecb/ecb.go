@@ -1,4 +1,4 @@
-package modes
+package ecb
 
 import (
 	"crypto/cipher"
@@ -12,8 +12,8 @@ type ecb struct {
 
 type ecbEncrypter ecb
 
-// NewECBEncrypter returns a BlockMode which encrypts using ECB
-func NewECBEncrypter(b cipher.Block) cipher.BlockMode {
+// NewEncrypter returns a BlockMode which encrypts using ECB
+func NewEncrypter(b cipher.Block) cipher.BlockMode {
 	return &ecbEncrypter{
 		b:         b,
 		blockSize: b.BlockSize(),
@@ -41,8 +41,8 @@ func (e *ecbEncrypter) BlockSize() int {
 
 type ecbDecrypter ecb
 
-// NewECBDecrypter returns a BlockMode which decrypts using ECB
-func NewECBDecrypter(b cipher.Block) cipher.BlockMode {
+// NewDecrypter returns a BlockMode which decrypts using ECB
+func NewDecrypter(b cipher.Block) cipher.BlockMode {
 	return &ecbDecrypter{
 		b:         b,
 		blockSize: b.BlockSize(),

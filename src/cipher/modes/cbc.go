@@ -42,7 +42,7 @@ func (e *cbcEncrypter) CryptBlocks(dst, src []byte) {
 	}
 }
 
-func (e *ecbEncrypter) BlockSize() int {
+func (e *cbcEncrypter) BlockSize() int {
 	return e.blockSize
 }
 

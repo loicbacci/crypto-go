@@ -4,16 +4,16 @@ import (
 	"encoding/binary"
 	"errors"
 	"hash"
-	"math"
+	"math/big"
 
-	lbhash "github.com/loicbacciga/crypto-go/src/hash"
+	lh "github.com/loicbacciga/crypto-go/src/hash"
 )
 
 type digest struct {
 	buf                []byte
 	h0, h1, h2, h3, h4 uint32
 	wt                 [80]uint32
-	writenBits         uint64
+	writenBits         big.Int
 }
 
 const BlockSize int = 512 / 8
@@ -74,64 +74,57 @@ func New() hash.Hash {
 }
 
 func (dig *digest) Write(p []byte) (n int, err error) {
+	toBeAdded := big.NewInt(0).Add(big.NewInt(int64(len(p))), big.NewInt(int64(len(dig.buf))))
+
+	if big.NewInt(0).Add(&dig.writenBits, toBeAdded).BitLen() > 64 {
+		return 0, errors.New("not enough room left")
+	}
+
 	// Just append to the already written data
 	dig.buf = append(dig.buf, p...)
 
 	// Wait until there are enough blocks
-	if len(dig.buf) >= BlockSize {
-		N := len(dig.buf) / BlockSize
+	for len(dig.buf) >= BlockSize {
+		Mi := dig.buf[:BlockSize]
 
-		for i := 0; i < N; i++ {
-			Mi := dig.buf[BlockSize*i : BlockSize*(i+1)]
-
-			// Prepare schedule
-			for t := range dig.wt {
-				if t <= 15 {
-					dig.wt[t] = binary.BigEndian.Uint32(Mi[4*t : 4*(t+1)])
-				} else {
-					dig.wt[t] = rotl(dig.wt[t-3]^dig.wt[t-8]^dig.wt[t-14]^dig.wt[t-16], 1)
-				}
+		// Prepare schedule
+		for t := range dig.wt {
+			if t <= 15 {
+				dig.wt[t] = binary.BigEndian.Uint32(Mi[4*t : 4*(t+1)])
+			} else {
+				dig.wt[t] = rotl(dig.wt[t-3]^dig.wt[t-8]^dig.wt[t-14]^dig.wt[t-16], 1)
 			}
-
-			// Init working variables
-			a, b, c, d, e := dig.h0, dig.h1, dig.h2, dig.h3, dig.h4
-
-			for t := 0; t < 80; t++ {
-				var T uint32 = rotl(a, 5) + ft(t, b, c, d) + e + kt(t) + dig.wt[t]
-				e = d
-				d = c
-				c = rotl(b, 30)
-				b = a
-				a = T
-			}
-
-			// Compute wt
-			dig.h0 = a + dig.h0
-			dig.h1 = b + dig.h1
-			dig.h2 = c + dig.h2
-			dig.h3 = d + dig.h3
-			dig.h4 = e + dig.h4
 		}
 
-		// Update written bits
-		rst := len(dig.buf) - (len(dig.buf) % BlockSize)
-		written := len(dig.buf) - rst
+		// Init working variables
+		a, b, c, d, e := dig.h0, dig.h1, dig.h2, dig.h3, dig.h4
 
-		// Check if written too large
-		if written >= math.MaxUint64/8 || written+(int(dig.writenBits)/8) >= math.MaxUint64/8 {
-			return 0, errors.New("written too many bytes")
+		for t := 0; t < 80; t++ {
+			var T uint32 = rotl(a, 5) + ft(t, b, c, d) + e + kt(t) + dig.wt[t]
+			e = d
+			d = c
+			c = rotl(b, 30)
+			b = a
+			a = T
 		}
-		dig.writenBits += uint64(written) * 8
 
-		dig.buf = dig.buf[:written]
+		// Compute wt
+		dig.h0 = a + dig.h0
+		dig.h1 = b + dig.h1
+		dig.h2 = c + dig.h2
+		dig.h3 = d + dig.h3
+		dig.h4 = e + dig.h4
+
+		dig.buf = dig.buf[BlockSize:]
+		dig.writenBits = *big.NewInt(0).Add(&dig.writenBits, big.NewInt(int64(BlockSize)*8))
 	}
 
 	return len(p), nil
 }
 
 func (d *digest) Sum(b []byte) []byte {
-	l := d.writenBits + uint64(len(d.buf))*8
-	pad := lbhash.ShaPadding32(l)
+	l := big.NewInt(0).Add(&d.writenBits, big.NewInt(int64(len(d.buf))*8))
+	pad := lh.ShaPadding32(l)
 	d.Write(pad)
 
 	res := make([]byte, Size)
@@ -144,6 +137,7 @@ func (d *digest) Sum(b []byte) []byte {
 }
 
 func (d *digest) Reset() {
+	d.writenBits = *big.NewInt(0)
 	d.buf = make([]byte, 0)
 	d.h0 = 0x67452301
 	d.h1 = 0xefcdab89

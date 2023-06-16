@@ -1,4 +1,4 @@
-package modes
+package ecb
 
 import (
 	"crypto/rand"
@@ -24,7 +24,7 @@ func (d *dummyBlock) Decrypt(dst, src []byte) {
 }
 
 func TestECB(t *testing.T) {
-	ecbEnc := NewECBEncrypter(&dummyBlock{})
+	ecbEnc := NewEncrypter(&dummyBlock{})
 
 	nbrBlocks := 10
 	src := make([]byte, blockSize*nbrBlocks)
@@ -52,7 +52,7 @@ func TestECB(t *testing.T) {
 	// Decrypt
 	decrypted := make([]byte, len(src))
 
-	ecbDec := NewECBDecrypter(&dummyBlock{})
+	ecbDec := NewDecrypter(&dummyBlock{})
 	ecbDec.CryptBlocks(decrypted, encrypted)
 
 	// Check result
