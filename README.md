@@ -21,7 +21,7 @@ Hashing:
 Stream ciphers:
 
 - [ ] Salsa20/12, Salsa20/20
-- [ ] ChaCha12, ChaCha20
+- [ ] ChaCha12, ChaCha20 (Done ChaCha20)
 - [ ] CSS stream cipher
 - [ ] RC4
 
